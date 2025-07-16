@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pendaftaran Keanggotaan WA</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gradient-to-r from-indigo-100 to-white min-h-screen flex items-center justify-center p-4">
+  <div class="bg-white shadow-xl rounded-xl p-6 w-full max-w-lg space-y-6">
+    <h1 class="text-2xl font-bold text-center text-indigo-700">Formulir Pendaftaran Keanggotaan</h1>
+    <form id="formPendaftaran">
+      <div>
+        <label class="font-semibold">Nama Lengkap</label>
+        <input name="nama" type="text" required class="w-full p-2 border rounded" />
+      </div>
+      <div>
+        <label class="font-semibold">Alamat</label>
+        <input name="alamat" type="text" required class="w-full p-2 border rounded" />
+      </div>
+      <div>
+        <label class="font-semibold">No. WhatsApp</label>
+        <input name="no_wa" type="text" required class="w-full p-2 border rounded" placeholder="081234567890" />
+      </div>
+      <div>
+        <label class="font-semibold">Tipe Keanggotaan</label>
+        <select name="keanggotaan" id="keanggotaan" onchange="toggleUpload(this)" class="w-full p-2 border rounded" required>
+          <option value="">-- Pilih --</option>
+          <option value="Reguler">Reguler</option>
+          <option value="VIP">VIP</option>
+        </select>
+      </div>
+      <div>
+        <label class="font-semibold">Metode Pembayaran</label>
+        <select name="metode" class="w-full p-2 border rounded" required>
+          <option value="">-- Pilih --</option>
+          <option value="Transfer Bank">Transfer Bank</option>
+          <option value="E-Wallet">E-Wallet</option>
+        </select>
+      </div>
+      <div id="buktiContainer" class="hidden">
+        <label class="font-semibold">Upload Bukti Pembayaran (VIP)</label>
+        <input type="file" id="bukti" accept="image/*" class="w-full" />
+      </div>
+      <button type="submit" class="w-full bg-indigo-600 text-white py-2 rounded hover:bg-indigo-700">Kirim</button>
+    </form>
+    <p id="respon" class="text-center text-green-600 font-semibold"></p>
+  </div>
+
+  <script>
+    const scriptURL = "https://script.google.com/macros/s/AKfycbwyz_M63isSNF-MCfH6yxD7-YkoEpQRAaPVLjVMGTLdlEGg1i65ffsGnbf-u5bcmaBQlA/exec"; // GANTI DENGAN URL GOOGLE APPS SCRIPT
+    const linkGrup = "https://chat.whatsapp.com/JL2454owG7BKlP7v7aUiOR?mode=r_t";
+
+    function toggleUpload(select) {
+      document.getElementById("buktiContainer").classList.toggle("hidden", select.value !== "VIP");
+    }
+
+    document.getElementById("formPendaftaran").addEventListener("submit", function (e) {
+      e.preventDefault();
+      const form = e.target;
+      const formData = new FormData(form);
+      const keanggotaan = form.keanggotaan.value;
+      let fileData = {};
+
+      if (keanggotaan === "VIP") {
+        const file = document.getElementById("bukti").files[0];
+        if (!file) {
+          alert("Silakan upload bukti pembayaran untuk VIP.");
+          return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = function () {
+          const base64 = reader.result.split(",")[1];
+          fileData = {
+            file: base64,
+            filename: file.name,
+            filetype: file.type
+          };
+          submitData(formData, fileData);
+        };
+        reader.readAsDataURL(file);
+      } else {
+        submitData(formData, {});
+      }
+    });
+
+    function submitData(formData, fileData) {
+      const data = {
+        nama: formData.get("nama"),
+        alamat: formData.get("alamat"),
+        no_wa: formData.get("no_wa"),
+        keanggotaan: formData.get("keanggotaan"),
+        metode: formData.get("metode"),
+        ...fileData
+      };
+
+      const encoded = new URLSearchParams(data);
+
+      fetch(scriptURL, {
+        method: "POST",
+        body: encoded,
+      })
+      .then(response => {
+        document.getElementById("respon").innerText = "✅ Pendaftaran berhasil! Silakan buka WhatsApp.";
+        document.getElementById("formPendaftaran").reset();
+        document.getElementById("buktiContainer").classList.add("hidden");
+
+        const pesan = `
+Halo ${data.nama}, terima kasih telah mendaftar!
+
+📍 *Data Pendaftaran Anda*:
+Nama: ${data.nama}
+Alamat: ${data.alamat}
+No. WA: ${data.no_wa}
+Tipe Keanggotaan: ${data.keanggotaan}
+Metode Pembayaran: ${data.metode}
+
+✅ Klik link berikut untuk masuk ke grup:
+${linkGrup}
+
+Salam Admin.
+        `.trim();
+
+        const noWA = data.no_wa.replace(/^0/, "62");
+        const waLink = `https://wa.me/${noWA}?text=${encodeURIComponent(pesan)}`;
+        window.open(waLink, "_blank");
+      })
+      .catch(error => {
+        document.getElementById("respon").innerText = "❌ Gagal mengirim data.";
+        console.error("Gagal!", error.message);
+      });
+    }
+  </script>
+</body>
+</html>
